@@ -13,7 +13,7 @@ import (
 // Kafka configuration
 const (
 	kafkaBroker = "localhost:9092" // Change this to your Kafka broker
-	topic = "mail"
+	topic 		= "user-signup-email"
 	groupID     = "mail_consumer"
 )
 
