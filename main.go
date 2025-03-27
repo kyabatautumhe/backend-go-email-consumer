@@ -22,6 +22,7 @@ const (
 	smtpHost = "smtp.gmail.com" // Change to your SMTP server
 	smtpPort = 587                // SMTP port (587 for TLS, 465 for SSL)
 	smtpUser = "ktm.mail2025@gmail.com"
+	// todo - think of how can we securely store the password
 	smtpPass = ""
 )
 
