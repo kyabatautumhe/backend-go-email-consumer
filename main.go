@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
-
 	"github.com/segmentio/kafka-go"
 	"gopkg.in/gomail.v2"
 )
@@ -13,8 +13,8 @@ import (
 // Kafka configuration
 const (
 	kafkaBroker = "localhost:9092" // Change this to your Kafka broker
-	topic       = "mail_topic"     // Kafka topic name
-	groupID     = "mail_consumer_group"
+	topic = "mail"
+	groupID     = "mail_consumer"
 )
 
 // SMTP configuration
@@ -25,7 +25,12 @@ const (
 	smtpPass = ""
 )
 
-// Kafka consumer function
+type Mail struct {
+	To      string `json:"to"`
+	Subject string `json:"subject"`
+	Body    string `json:"body"`
+}
+
 func consumeKafka() {
 	kafkaReader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  []string{kafkaBroker},
@@ -35,31 +40,39 @@ func consumeKafka() {
 		MaxBytes: 10e6, // 10MB
 	})
 
+	// Ideally this will never be executed as we want the consumtion to run forever. But in case of panic
+	defer kafkaReader.Close()
+
 	fmt.Println("Kafka consumer started...")
 	for {
-		message, err := kafkaReader.ReadMessage(context.Background())
-		log.Printf("Tried reading from Kafka")
+
+		// read next msg from kafka
+		kafkaMsg, err := kafkaReader.ReadMessage(context.Background())
 		if err != nil {
 			log.Printf("Error reading message: %v", err)
 			// No more msg. So just goto sleep and don't eat the CPU cycles
-			time.Sleep(2 * time.Second)
+			time.Sleep(10 * time.Second)
 			continue
 		}
 
-		fmt.Printf("Received message: %s\n", string(message.Value))
+		log.Printf("Read msg from kafka: %s\n", string(kafkaMsg.Value))
 
-		// Send email with message content
-		sendEmail("ktm.mail2025@gmail.com", "Kafka Email Notification", string(message.Value))
+		var mail Mail
+		if err := json.Unmarshal(kafkaMsg.Value, &mail); err != nil {
+			log.Printf("Error parsing JSON: %v", err)
+			continue
+		}
+
+		sendMail(mail)
 	}
 }
 
-// Function to send an email
-func sendEmail(to, subject, body string) {
+func sendMail(mail Mail) {
 	message := gomail.NewMessage()
 	message.SetHeader("From", smtpUser)
-	message.SetHeader("To", to)
-	message.SetHeader("Subject", subject)
-	message.SetBody("text/plain", body)
+	message.SetHeader("To", mail.To)
+	message.SetHeader("Subject", mail.Subject)
+	message.SetBody("text/plain", mail.Body)
 
 	d := gomail.NewDialer(smtpHost, smtpPort, smtpUser, smtpPass)
 
